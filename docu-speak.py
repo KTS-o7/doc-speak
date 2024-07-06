@@ -7,8 +7,9 @@ from langchain.chains.conversational_retrieval.base import ConversationalRetriev
 from langchain_groq import ChatGroq
 from langchain.memory import ChatMessageHistory, ConversationBufferMemory
 from langchain.callbacks import StreamlitCallbackHandler
-from dotenv import load_dotenv
-load_dotenv()
+
+JINA_API_KEY = st.secrets["JINA_API_KEY"]
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 st.title("📄 Chat with your PDF Document using Groq")
 
 # Initialize session state variables
@@ -36,7 +37,7 @@ if uploaded_file is not None:
         metadatas = [{"source": f"{i}-{uploaded_file.name}-pl"} for i in range(len(texts))]
 
     # Create a Chroma vector store
-    embeddings = JinaEmbeddings()
+    embeddings = JinaEmbeddings(jina_api_key=JINA_API_KEY)
     docsearch = Chroma.from_texts(texts, embeddings, metadatas=metadatas)
 
     # Initialize message history for conversation
@@ -52,7 +53,7 @@ if uploaded_file is not None:
     )
 
     # Initialize Groq LLM
-    llm_groq = ChatGroq(model_name='mixtral-8x7b-32768')
+    llm_groq = ChatGroq(model_name='mixtral-8x7b-32768',api_key=GROQ_API_KEY)
 
     # Create a chain that uses the Chroma vector store
     chain = ConversationalRetrievalChain.from_llm(
