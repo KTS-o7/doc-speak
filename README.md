@@ -1,2 +1,2 @@
-# doc-speak
+# docu-speak
 A Streamlit hosted cloud chat 
