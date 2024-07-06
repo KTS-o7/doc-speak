@@ -108,14 +108,13 @@ if prompt := st.chat_input(placeholder="Ask a question about the PDF"):
                 for source in st.session_state.sources:
                     st.markdown(source)
                 st.session_state.sources = []
-
+            print(type(st.session_state.message_history))
             st.session_state.messages.append({"role": "assistant", "content": response_text})
             st.write(response_text)
             
 if st.button("Clear chat history"):
     st.session_state.messages = []
     st.session_state.sources = []
-    st.session_state.message_history.clear()
     st.session_state.chain = None
     st.session_state.message_history = ChatMessageHistory()
     st.write("Chat history cleared.")
