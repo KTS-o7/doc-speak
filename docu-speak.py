@@ -37,7 +37,7 @@ if uploaded_file is not None:
     for page in pdf.pages:
         pdf_text += page.extract_text()
         # Split the text into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
         texts = text_splitter.split_text(pdf_text)
 
         # Create metadata for each chunk
@@ -60,7 +60,7 @@ if uploaded_file is not None:
     )
 
     # Initialize Groq LLM
-    llm_groq = ChatGroq(model_name='mixtral-8x7b-32768',api_key=GROQ_API_KEY)
+    llm_groq = ChatGroq(model_name='llama3-70b-8192',api_key=GROQ_API_KEY,temperature=0.6)
 
     # Create a chain that uses the Chroma vector store
     chain = ConversationalRetrievalChain.from_llm(
@@ -80,12 +80,6 @@ if uploaded_file is not None:
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-# Display sources in the sidebar
-with st.sidebar:
-    st.header("Sources")
-    for source in st.session_state.sources:
-        st.write(source)
-
 # Text input for user queries
 if prompt := st.chat_input(placeholder="Ask a question about the PDF"):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -103,11 +97,28 @@ if prompt := st.chat_input(placeholder="Ask a question about the PDF"):
             st.session_state.sources = []
 
             if source_documents:
-                response_text += "\n\nSources:\n"
+                #response_text += "\n\nSources:\n"
                 for idx, doc in enumerate(source_documents):
                     short_version = doc.page_content[:200] + '...' if len(doc.page_content) > 200 else doc.page_content
                     st.session_state.sources.append(f"Source {idx + 1}: {short_version}")
-                    response_text += f"{idx + 1}. {short_version}\n"
+                    #response_text += f"{idx + 1}. {short_version}\n"
+                
+            with st.sidebar:
+                st.header("Sources")
+                for source in st.session_state.sources:
+                    st.markdown(source)
+                st.session_state.sources = []
 
             st.session_state.messages.append({"role": "assistant", "content": response_text})
             st.write(response_text)
+            
+if st.button("Clear chat history"):
+    st.session_state.messages = []
+    st.session_state.sources = []
+    st.session_state.message_history.clear()
+    st.session_state.chain = None
+    st.session_state.message_history = ChatMessageHistory()
+    st.write("Chat history cleared.")
+    with st.sidebar:
+        st.empty()
+    st.empty()
