@@ -5,8 +5,15 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.chroma import Chroma
 from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
 from langchain_groq import ChatGroq
-from langchain.memory import ChatMessageHistory, ConversationBufferMemory
-from langchain.callbacks import StreamlitCallbackHandler
+from langchain.memory import ConversationBufferMemory
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
+from streamlit import logger
+
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 
 JINA_API_KEY = st.secrets["JINA_API_KEY"]
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
