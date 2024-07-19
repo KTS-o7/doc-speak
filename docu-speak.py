@@ -31,7 +31,7 @@ if "session_id" not in st.session_state:
 
 # Unique session keys
 session_id = st.session_state.session_id
-print(f"Session ID: {session_id}")
+#print(f"Session ID: {session_id}")
 chain_key = f"chain_{session_id}"
 messages_key = f"messages_{session_id}"
 sources_key = f"sources_{session_id}"
