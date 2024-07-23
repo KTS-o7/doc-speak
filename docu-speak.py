@@ -65,7 +65,7 @@ def process_pdf(uploaded_file):
 
 # Function to initialize the chain
 def initialize_chain(docsearch):
-    llm_groq = ChatGroq(model_name='llama3-70b-8192', api_key=GROQ_API_KEY, temperature=0.3)
+    llm_groq = ChatGroq(model_name='llama-3.1-70b-versatile', api_key=GROQ_API_KEY, temperature=0.3)
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         output_key="answer",
