@@ -19,7 +19,7 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 logging.basicConfig(level=logging.INFO)
 
 # Streamlit setup
-st.title("📄 Chat with your PDF Document using Groq")
+st.title("📄 Chat with your PDF Documents using Groq")
 
 # Fetch API keys
 JINA_API_KEY = st.secrets["JINA_API_KEY"]
@@ -31,7 +31,6 @@ if "session_id" not in st.session_state:
 
 # Unique session keys
 session_id = st.session_state.session_id
-#print(f"Session ID: {session_id}")
 chain_key = f"chain_{session_id}"
 messages_key = f"messages_{session_id}"
 sources_key = f"sources_{session_id}"
@@ -55,17 +54,13 @@ def process_pdf(uploaded_file):
     texts = text_splitter.split_text(pdf_text)
 
     # Create metadata for each chunk
-    metadatas = [{"source": f"{i}-{uploaded_file.name}-pl"} for i in range(len(texts))]
+    metadatas = [{"source": f"{i}-{uploaded_file.name}-pl", "document_name": uploaded_file.name, "page_number": i} for i in range(len(texts))]
     
-    # Create a Chroma vector store
-    embeddings = JinaEmbeddings(jina_api_key=JINA_API_KEY)
-    docsearch = Chroma.from_texts(texts, embeddings, metadatas=metadatas)
-
-    return docsearch
+    return texts, metadatas
 
 # Function to initialize the chain
 def initialize_chain(docsearch):
-    llm_groq = ChatGroq(model_name='llama-3.1-70b-versatile', api_key=GROQ_API_KEY, temperature=0.3)
+    llm_groq = ChatGroq(model_name='llama-3.2-11b-vision-preview', api_key=GROQ_API_KEY, temperature=0.3)
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         output_key="answer",
@@ -84,26 +79,37 @@ def initialize_chain(docsearch):
     return chain
 
 # UI for file upload
-st.write("API keys are set. You can now upload a PDF file.")
-uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+st.write("API keys are set. You can now upload PDF files.")
+uploaded_files = st.file_uploader("Upload PDF files", type=["pdf"], accept_multiple_files=True)
 
-if uploaded_file is not None:
+if uploaded_files:
     try:
-        docsearch = process_pdf(uploaded_file)
+        if "docsearch" not in st.session_state:
+            all_texts = []
+            all_metadatas = []
+            for uploaded_file in uploaded_files:
+                texts, metadatas = process_pdf(uploaded_file)
+                all_texts.extend(texts)
+                all_metadatas.extend(metadatas)
+            
+            # Create a Chroma vector store
+            embeddings = JinaEmbeddings(jina_api_key=JINA_API_KEY)
+            st.session_state.docsearch = Chroma.from_texts(all_texts, embeddings, metadatas=all_metadatas)
+        
         if history_key not in st.session_state:
             st.session_state[history_key] = ChatMessageHistory()
-        st.session_state[chain_key] = initialize_chain(docsearch)
-        st.write(f"Processing `{uploaded_file.name}` done. You can now ask questions!")
+        st.session_state[chain_key] = initialize_chain(st.session_state.docsearch)
+        st.write("Processing done. You can now ask questions!")
     except Exception as e:
-        st.error(f"An error occurred while processing the file: {e}")
-        logging.error(f"Error processing PDF: {e}")
+        st.error(f"An error occurred while processing the files: {e}")
+        logging.error(f"Error processing PDFs: {e}")
 
 # Display chat history
 for msg in st.session_state[messages_key]:
     st.chat_message(msg["role"]).write(msg["content"])
 
 # Handle user queries
-if prompt := st.chat_input(placeholder="Ask a question about the PDF"):
+if prompt := st.chat_input(placeholder="Ask a question about the PDFs"):
     st.session_state[messages_key].append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
@@ -121,7 +127,10 @@ if prompt := st.chat_input(placeholder="Ask a question about the PDF"):
             if source_documents:
                 for idx, doc in enumerate(source_documents):
                     short_version = doc.page_content[:200] + '...' if len(doc.page_content) > 200 else doc.page_content
-                    st.session_state[sources_key].append(f"Source {idx + 1}: {short_version}")
+                    source_info = doc.metadata.get("source", "Unknown Source")
+                    document_name = doc.metadata.get("document_name", "Unknown Document")
+                    page_number = doc.metadata.get("page_number", "Unknown Page")
+                    st.session_state[sources_key].append(f"Source {idx + 1}: {short_version} (Document: {document_name}, Page: {page_number})")
                 
             with st.sidebar:
                 st.header("Sources")
@@ -138,9 +147,8 @@ if st.button("Clear chat history"):
     st.session_state[sources_key] = []
     st.session_state[chain_key] = None
     st.session_state[history_key] = ChatMessageHistory()
-    del uploaded_file
+    del st.session_state['docsearch']
     del st.session_state['session_id'] 
-    docsearch = None
     st.write("Chat history cleared.")
     with st.sidebar:
         st.empty()
